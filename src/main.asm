@@ -130,9 +130,10 @@ NMI_Hijack:
 HUD_Hijack:
 {
     ; check if time is up
-    LDA !sram_timer_minutes : BMI .drawRed
+    LDA !sram_timer_minutes : BMI .endgame
     ORA !sram_timer_seconds : ORA !sram_timer_frames : BEQ .endgame
 
+  .recheckMinutes
     ; update minutes
     LDA !sram_timer_minutes : CMP !ram_HUD_minutes : BEQ .updateSeconds
     STA !ram_HUD_minutes
@@ -140,14 +141,21 @@ HUD_Hijack:
     LDA #!HUD_COLON : STA !HUD_TILEMAP+$AE
 
   .updateSeconds
-    LDA !sram_timer_seconds : CMP !ram_HUD_seconds : BEQ .endHUDupdate
+    LDA !sram_timer_seconds : CMP !ram_HUD_seconds : BEQ .checkColon
     STA !ram_HUD_seconds
     LDX #$00B0 : JSR Draw_Seconds
+
+  .checkColon
+    LDA !HUD_TILEMAP+$AE : CMP #!HUD_COLON : BEQ .endHUDupdate
+    LDA #$FFFF : STA !ram_HUD_minutes : STA !ram_HUD_seconds
+    BRA .recheckMinutes
 
   .endHUDupdate
     JML $809B44 ; Handle HUD tilemap
 
   .endgame
+    LDA $0998 : CMP #$0026 : BEQ .drawRed
+
     ; set game state to 26h to load credits
     LDA #$0026 : STA $0998
 
@@ -392,7 +400,7 @@ Draw_Minutes_Menu:
     STA $4204
     %a8()
 
-    ; divide by 100
+    ; divide by 10
     LDA #$0A : STA $4206
     %a16()
     PEA $0000 : PLA ; wait for CPU math
